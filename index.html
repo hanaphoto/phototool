@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>撮影計算機</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@400;700&display=swap">
+<style>
+:root{--bg:#E8ECEF;--card:#F7F9FA;--ink:#11161A;--mute:#55626D;--line:#C9D1D8;--acc:#0B7A85;--lcd:#0E1417;--lcdt:#7FE3EA;--lcdm:#8A9BA3;--inp:#fff;color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0C1013;--card:#161C21;--ink:#E6ECF0;--mute:#93A1AB;--line:#2A343B;--acc:#5CC8D0;--lcd:#05080A;--lcdt:#7FE3EA;--lcdm:#7C8E96;--inp:#0F1418;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#0C1013;--card:#161C21;--ink:#E6ECF0;--mute:#93A1AB;--line:#2A343B;--acc:#5CC8D0;--lcd:#05080A;--lcdt:#7FE3EA;--lcdm:#7C8E96;--inp:#0F1418;color-scheme:dark}
+:root[data-night="1"]{--bg:#000;--card:#0A0000;--ink:#FF5A4D;--mute:#B03A31;--line:#3A0E0B;--acc:#FF3B2F;--lcd:#000;--lcdt:#FF3B2F;--lcdm:#A02B22;--inp:#000;color-scheme:dark}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:"Zen Kaku Gothic New","Hiragino Kaku Gothic ProN","Yu Gothic",Meiryo,sans-serif;font-size:16px;line-height:1.6}
+main{max-width:560px;margin:0 auto;padding:16px}
+header{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:16px}
+h1{font-size:22px;margin:0;font-weight:700}
+button,select,input{font:inherit;color:var(--ink)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:14px;margin-bottom:14px;display:grid;grid-template-columns:1fr 1fr;gap:12px}
+label{display:flex;flex-direction:column;gap:4px;font-size:14px;color:var(--mute)}
+input,select{min-height:44px;padding:6px 10px;border:1px solid var(--line);border-radius:6px;background:var(--inp);font-size:17px}
+:focus-visible{outline:3px solid var(--acc);outline-offset:2px}
+.btn{min-height:44px;padding:6px 14px;border:1px solid var(--line);border-radius:6px;background:var(--card);cursor:pointer}
+.btn[aria-pressed="true"],.tab[aria-selected="true"]{background:var(--acc);border-color:var(--acc);color:var(--bg);font-weight:700}
+.tabs{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:14px}
+.tab{font-size:14px;padding:6px 4px}
+[hidden]{display:none!important}
+.lcd{grid-column:1/-1;background:var(--lcd);border-radius:8px;padding:14px 16px;font-variant-numeric:tabular-nums}
+.lcd div{display:flex;justify-content:space-between;align-items:baseline;gap:12px;padding:6px 0}
+.lcd span{color:var(--lcdm);font-size:14px}
+.lcd b{color:var(--lcdt);font-size:clamp(22px,6.5vw,32px);font-weight:700;text-align:right}
+.lcd .big b{font-size:clamp(28px,8.5vw,42px)}
+.lcd p{margin:2px 0 0;color:var(--lcdm);font-size:14px;text-align:right}
+.note{grid-column:1/-1;margin:0;font-size:13px;color:var(--mute)}
+</style>
+</head>
+<body>
+<main>
+<header>
+  <h1>撮影計算機</h1>
+  <button class="btn" id="night" aria-pressed="false">ナイトモード</button>
+</header>
+
+<section class="card" aria-label="共通設定">
+  <label>フレームレート(fps)
+    <select id="fps"><option value="24">24</option><option value="30" selected>30</option><option value="60">60</option><option value="custom">自由入力</option></select>
+  </label>
+  <label>撮影間隔(秒)
+    <input id="iv" type="number" min="0" step="any" value="5" inputmode="decimal">
+  </label>
+  <label id="fpsCw" hidden style="grid-column:1/-1">fps(自由入力)
+    <input id="fpsC" type="number" min="0" step="any" value="25" inputmode="decimal">
+  </label>
+</section>
+
+<div class="tabs" role="tablist">
+  <button class="btn tab" role="tab" id="t1" aria-selected="true" aria-controls="p1">撮影時間を逆算</button>
+  <button class="btn tab" role="tab" id="t3" aria-selected="false" aria-controls="p3">再生時間を算出</button>
+  <button class="btn tab" role="tab" id="t2" aria-selected="false" aria-controls="p2">バッテリー・カード</button>
+</div>
+
+<section class="card" id="p1" role="tabpanel" aria-labelledby="t1">
+  <label style="grid-column:1/-1">完成の再生時間(秒)
+    <input id="dur" type="number" min="0" step="any" value="10" inputmode="decimal">
+  </label>
+  <div class="lcd">
+    <div class="big"><span>必要な枚数</span><b id="r-frames">—</b></div>
+    <div><span>必要な撮影時間</span><b id="r-shoot">—</b></div>
+  </div>
+</section>
+
+<section class="card" id="p3" role="tabpanel" aria-labelledby="t3" hidden>
+  <label>撮影時間(時間)
+    <input id="sh" type="number" min="0" step="any" value="1" inputmode="decimal">
+  </label>
+  <label>撮影時間(分)
+    <input id="sm" type="number" min="0" step="any" value="0" inputmode="decimal">
+  </label>
+  <div class="lcd">
+    <div class="big"><span>完成の再生時間</span><b id="r-sl">—</b></div>
+    <div><span>撮影枚数</span><b id="r-sf">—</b></div>
+    <div><span>秒換算</span><b id="r-ss">—</b></div>
+  </div>
+</section>
+
+<section class="card" id="p2" role="tabpanel" aria-labelledby="t2" hidden>
+  <label>バッテリー容量(mAh)
+    <input id="bat" type="number" min="0" step="any" value="2000" inputmode="decimal">
+  </label>
+  <label>平均消費電流(mA)
+    <input id="cur" type="number" min="0" step="any" value="500" inputmode="decimal">
+  </label>
+  <label>メモリーカード容量(GB)
+    <input id="card" type="number" min="0" step="any" value="128" inputmode="decimal">
+  </label>
+  <label>1枚あたりのサイズ(MB)
+    <input id="fsize" type="number" min="0" step="any" value="25" inputmode="decimal">
+  </label>
+  <div class="lcd">
+    <div class="big"><span>撮影できる時間</span><b id="r-lim">—</b></div>
+    <p id="r-why"></p>
+    <div><span>完成する動画の長さ</span><b id="r-len">—</b></div>
+    <div><span>バッテリー</span><b id="r-bt">—</b></div>
+    <div><span>　撮影枚数</span><b id="r-bf">—</b></div>
+    <div><span>メモリーカード</span><b id="r-mt">—</b></div>
+    <div><span>　撮影枚数</span><b id="r-mf">—</b></div>
+  </div>
+  <p class="note">バッテリーは連続稼働の目安です。カードは 1GB = 1000MB で計算しています。</p>
+</section>
+</main>
+
+<script>
+const $=i=>document.getElementById(i);
+const n=i=>{const v=parseFloat($(i).value);return v>0&&isFinite(v)?v:NaN};
+const fps=()=>$('fps').value==='custom'?n('fpsC'):parseFloat($('fps').value);
+const fmt=s=>{if(!isFinite(s))return'—';s=Math.round(s);const h=Math.floor(s/3600),m=Math.floor(s%3600/60),x=s%60;return(h?h+'時間 ':'')+((h||m)?m+'分 ':'')+x+'秒'};
+const cnt=v=>isFinite(v)?Math.floor(v).toLocaleString('ja-JP')+' 枚':'—';
+function calc(){
+  const f=fps(),iv=n('iv');
+  $('fpsCw').hidden=$('fps').value!=='custom';
+  const frames=Math.ceil(n('dur')*f);
+  $('r-frames').textContent=isFinite(frames)?frames.toLocaleString('ja-JP')+' 枚':'—';
+  $('r-shoot').textContent=fmt(frames*iv);
+  const sec=(parseFloat($('sh').value)||0)*3600+(parseFloat($('sm').value)||0)*60;
+  const sf=sec>0&&iv>0?Math.floor(sec/iv):NaN;
+  $('r-sf').textContent=cnt(sf);
+  $('r-sl').textContent=fmt(sf/f);
+  $('r-ss').textContent=isFinite(sf/f)?(sf/f).toFixed(1)+' 秒':'—';
+  const bSec=n('bat')/n('cur')*3600,mFrames=n('card')*1000/n('fsize'),mSec=mFrames*iv;
+  $('r-bt').textContent=fmt(bSec);$('r-bf').textContent=cnt(bSec/iv);
+  $('r-mt').textContent=fmt(mSec);$('r-mf').textContent=cnt(mFrames);
+  const lim=Math.min(bSec,mSec);
+  $('r-lim').textContent=fmt(lim);
+  $('r-why').textContent=isFinite(lim)?(bSec<mSec?'バッテリーが先に切れます':bSec>mSec?'カードが先にいっぱいになります':'どちらも同時です'):'';
+  $('r-len').textContent=fmt(lim/iv/f);
+}
+document.addEventListener('input',calc);
+const tabs=[['t1','p1'],['t3','p3'],['t2','p2']];
+tabs.forEach(([t,p])=>{
+  $(t).onclick=()=>tabs.forEach(([x,y])=>{$(x).setAttribute('aria-selected',x===t);$(y).hidden=y!==p});
+});
+$('night').onclick=()=>{
+  const on=$('night').getAttribute('aria-pressed')!=='true';
+  $('night').setAttribute('aria-pressed',on);
+  if(on)document.documentElement.setAttribute('data-night','1');else document.documentElement.removeAttribute('data-night');
+};
+calc();
+</script>
+</body>
+</html>
